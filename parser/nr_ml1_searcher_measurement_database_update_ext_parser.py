@@ -7,12 +7,16 @@ class NR_ML1_Searcher_Measurement_Database_Update_Ext_Parser(Parser):
     def __init__(self) -> None:
         super().__init__()
         self.columns = {
-            "Timestamp": "TIMESTAMP_NS", 
-            "Timestamp_BS": "TIMESTAMP_NS",  
+            "Timestamp": "TIMESTAMP_NS",
+            "Timestamp_BS": "TIMESTAMP_NS",
             "Raster ARFCN": "BIGINT",
             "Num Cells": "BIGINT",
             "Serving Cell Index": "BIGINT",
             "Serving Cell PCI": "BIGINT",
+            "Num Layers": "BIGINT",
+            "SSB Periodicity Serv Cell": "BIGINT",
+            "Frequency Offset": "DOUBLE",
+            "Timing Offset": "BIGINT",
             "PCI0": "BIGINT",
             "RSRP0": "DOUBLE",
             "RSRQ0": "DOUBLE",
@@ -52,7 +56,7 @@ class NR_ML1_Searcher_Measurement_Database_Update_Ext_Parser(Parser):
         }
         self.table_name = "NR_ML1_Searcher_Measurement_Database_Update_Ext"
         self.type_id = ["5G_NR_ML1_Searcher_Measurement_Database_Update_Ext"]
-        
+
     def parse_to_db(self, msg, tree, db):
         timestamp = tree.find("pair[@key='device_timestamp']")
         if timestamp != None:
@@ -60,14 +64,20 @@ class NR_ML1_Searcher_Measurement_Database_Update_Ext_Parser(Parser):
         else:
             timestamp = tree.find("pair[@key='timestamp']").text
         bs_timestamp = tree.find("pair[@key='timestamp']").text
+
+        num_layers = tree.find("pair[@key='Num Layers']").text
+        ssb_periodicity_serv_cell = tree.find("pair[@key='SSB Periodicity Serv Cell']").text
+        frequency_offset = tree.find("pair[@key='Frequency Offset']").text
+        timing_offset = tree.find("pair[@key='Timing Offset']").text
+
         msg_io = io.StringIO(msg)
         l = msg_io.readline()
         data = ""
         if r"<dm_log_packet>" in l:
-            
+
             soup = BeautifulSoup(l, 'html.parser')
             arfcn = soup.find(key="Raster ARFCN").get_text()
-            
+
             num_cells = soup.find(key="Num Cells").get_text()
             serving_cell_idex = soup.find(key="Serving Cell Index").get_text()
             serving_cell_pci = soup.find(key="Serving Cell PCI").get_text()
@@ -75,7 +85,7 @@ class NR_ML1_Searcher_Measurement_Database_Update_Ext_Parser(Parser):
             rsrps = [rsrp.get_text() for rsrp in soup.findAll(key="Cell Quality Rsrp")]
             rsrqs = [rsrq.get_text() for rsrq in soup.findAll(key="Cell Quality Rsrq")]
             A = []
-            for i in range(int(num_cells)):    
+            for i in range(int(num_cells)):
                 A.append(pcis[i])
                 A.append(rsrps[i])
                 A.append(rsrqs[i])
@@ -84,7 +94,8 @@ class NR_ML1_Searcher_Measurement_Database_Update_Ext_Parser(Parser):
                     A.append(0)
                     A.append(0)
                     A.append(0)
-            A = [timestamp, bs_timestamp, arfcn, num_cells, serving_cell_idex, serving_cell_pci] + A
+            A = [timestamp, bs_timestamp, arfcn, num_cells, serving_cell_idex, serving_cell_pci,
+                    num_layers, ssb_periodicity_serv_cell, frequency_offset, timing_offset] + A
             A = [str(i) for i in A]
             cnt = 0
             for i in self.columns.values():
